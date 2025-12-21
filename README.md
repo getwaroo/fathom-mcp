@@ -4,10 +4,12 @@ File-first knowledge base MCP server. Search and read documents (PDF, Markdown, 
 
 ## Features
 
+- **File-first approach**: Search directly in files using ugrep (no database/RAG required)
 - **Browse**: List collections and find documents by name
 - **Search**: Full-text search with boolean operators (AND, OR, NOT)
 - **Read**: Read document content with page selection for PDFs
 - **Formats**: PDF, Markdown, Text (extensible via config)
+- **Security-first**: Path validation, command sandboxing, read-only by design
 
 ## Prerequisites
 
@@ -24,7 +26,7 @@ File-first knowledge base MCP server. Search and read documents (PDF, Markdown, 
 cd file-knowledge-mcp
 
 # Install with uv (recommended)
-uv sync --all-extras
+uv sync --extra dev
 
 # Or with pip
 pip install -e ".[dev]"
@@ -181,7 +183,7 @@ Key settings:
 
 ```bash
 # Install dev dependencies
-uv sync --all-extras
+uv sync --extra dev
 
 # Run tests
 uv run pytest -v
@@ -203,6 +205,7 @@ file-knowledge-mcp/
 ├── src/file_knowledge_mcp/
 │   ├── config.py          # Configuration management
 │   ├── errors.py          # Error definitions
+│   ├── security.py        # Security controls
 │   ├── server.py          # MCP server
 │   ├── __main__.py        # CLI entry point
 │   ├── tools/
@@ -211,12 +214,29 @@ file-knowledge-mcp/
 │   │   └── read.py        # read_document
 │   └── search/
 │       └── ugrep.py       # Search engine wrapper
-└── tests/
-    ├── conftest.py
-    ├── test_config.py
-    ├── test_browse.py
-    └── test_read.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_config.py
+│   ├── test_browse.py
+│   └── test_read.py
+└── docs/
+    └── cloud-sync-guide.md  # Cloud storage integration
 ```
+
+## Cloud Storage Integration
+
+This MCP server provides **read-only** access to your local knowledge base. Cloud synchronization is intentionally kept **outside** the server for security and architectural reasons.
+
+If you need to sync documents from cloud storage (Google Drive, Dropbox, OneDrive, S3, etc.), see our comprehensive guide:
+
+**📖 [Cloud Storage Integration Guide](docs/cloud-sync-guide.md)**
+
+The guide covers three recommended approaches:
+- **rclone mount** - Mount cloud storage as local filesystem (recommended for production)
+- **Cloud Desktop Clients** - Use official sync clients (easiest for desktop)
+- **Scheduled Sync** - Periodic sync with cron/systemd (most efficient for servers)
+
+All approaches maintain proper security boundaries by keeping sync operations separate from the MCP server.
 
 ## License
 

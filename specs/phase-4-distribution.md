@@ -2,15 +2,27 @@
 
 ## Prerequisites
 
-- Phases 1-3 completed
+- Phases 1-2 completed (Phase 3 skipped - sync is out of scope)
 - All tests passing
 - Core features stable
+
+## Note on Phase 3
+
+**Phase 3 (Cloud Sync via rclone) has been intentionally skipped.**
+
+Rationale:
+- **Security**: Exposing rclone tools to AI clients creates significant security risks (data exfiltration, unauthorized access)
+- **Single Responsibility**: This is a read-only knowledge base MCP server, not a sync tool
+- **Existing Solutions**: Users can use rclone mount, cloud desktop clients, or scheduled sync outside the MCP server
+- **Simpler is Better**: Fewer features = smaller attack surface, easier security audits
+
+See the Cloud Storage Integration section in the README below for recommended alternatives.
 
 ## Goals
 
 1. **Docker image** - easy deployment
 2. **PyPI package** - pip install
-3. **Documentation** - comprehensive README and examples
+3. **Documentation** - comprehensive README and cloud sync alternatives
 4. **CI/CD** - automated testing and publishing
 
 ---
@@ -49,19 +61,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Optional: Install rclone for sync support
-ARG WITH_SYNC=false
-RUN if [ "$WITH_SYNC" = "true" ]; then \
-    apt-get update && apt-get install -y --no-install-recommends curl unzip && \
-    curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip && \
-    unzip rclone-current-linux-amd64.zip && \
-    cp rclone-*-linux-amd64/rclone /usr/local/bin/ && \
-    rm -rf rclone-* && \
-    apt-get remove -y curl unzip && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*; \
-    fi
-
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
 USER app
@@ -77,7 +76,7 @@ COPY --chown=app:app src/ /home/app/src/
 ENV PATH="/home/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/home/app"
 
-# Default knowledge directory
+# Default knowledge directory (read-only recommended)
 VOLUME /knowledge
 ENV FKM_KNOWLEDGE__ROOT=/knowledge
 
@@ -98,29 +97,21 @@ services:
   file-knowledge-mcp:
     build:
       context: .
-      args:
-        WITH_SYNC: "false"
     image: file-knowledge-mcp:latest
     volumes:
+      # Mount documents as read-only for security
       - ./documents:/knowledge:ro
       - ./config.yaml:/config/config.yaml:ro
-    # For Claude Desktop integration via stdio
+    # For MCP stdio communication
     stdin_open: true
     tty: true
 
-  # With sync support
-  file-knowledge-mcp-sync:
-    build:
-      context: .
-      args:
-        WITH_SYNC: "true"
-    image: file-knowledge-mcp:sync
-    volumes:
-      - ./documents:/knowledge
-      - ./config.yaml:/config/config.yaml:ro
-      - ~/.config/rclone:/home/app/.config/rclone:ro  # rclone config
-    stdin_open: true
-    tty: true
+    # Optional: Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
 ```
 
 ### .dockerignore
@@ -156,8 +147,9 @@ docker-compose*.yaml
 - [ ] Create docker-compose.yaml
 - [ ] Create .dockerignore
 - [ ] Test build: `docker build -t file-knowledge-mcp .`
-- [ ] Test run: `docker run -v ./docs:/knowledge file-knowledge-mcp`
-- [ ] Test with sync: `docker build --build-arg WITH_SYNC=true`
+- [ ] Test run: `docker run -v ./docs:/knowledge:ro file-knowledge-mcp`
+- [ ] Test with docker-compose: `docker-compose up`
+- [ ] Verify image size is reasonable (<200MB)
 - [ ] Document Docker usage in README
 
 ---
@@ -209,18 +201,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-sync = [
-    "watchfiles>=0.20",
-]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.0",
     "ruff>=0.1.0",
     "mypy>=1.0",
-]
-all = [
-    "file-knowledge-mcp[sync,dev]",
 ]
 
 [project.scripts]
@@ -323,11 +309,11 @@ File-first knowledge base MCP server. Search your documents with AI using the Mo
 
 ## Features
 
-- **File-first approach** - Search directly in files using ugrep (not RAG)
+- **File-first approach** - Search directly in files using ugrep (no database/RAG required)
 - **Boolean search** - AND, OR, NOT operators for precise queries
 - **Hierarchical collections** - Organize documents in folders
-- **Multiple formats** - PDF, Markdown, plain text
-- **Cloud sync** - Optional sync from Google Drive, Dropbox, S3 via rclone
+- **Multiple formats** - PDF, Markdown, plain text, and more
+- **Security-first** - Path validation, command sandboxing, read-only by design
 
 ## Quick Start
 
@@ -336,9 +322,6 @@ File-first knowledge base MCP server. Search your documents with AI using the Mo
 ```bash
 # Install from PyPI
 pip install file-knowledge-mcp
-
-# With cloud sync support
-pip install file-knowledge-mcp[sync]
 ```
 
 ### System Dependencies
@@ -349,9 +332,6 @@ sudo apt install ugrep poppler-utils
 
 # macOS
 brew install ugrep poppler
-
-# Optional: rclone for cloud sync
-# https://rclone.org/install/
 ```
 
 ### Usage
@@ -391,12 +371,14 @@ search:
   context_lines: 5
   max_results: 50
 
-# Optional: cloud sync
-sync:
-  enabled: true
-  remotes:
-    gdrive:
-      rclone_remote: "gdrive:MyDocuments"
+security:
+  enable_shell_filters: true
+  filter_mode: whitelist
+
+exclude:
+  patterns:
+    - ".git/*"
+    - "*.draft.*"
 ```
 
 See [config.example.yaml](config.example.yaml) for all options.
@@ -411,7 +393,6 @@ See [config.example.yaml](config.example.yaml) for all options.
 | `search_multiple` | Parallel search for multiple terms |
 | `read_document` | Read document content |
 | `get_document_info` | Get metadata and TOC |
-| `sync_remote` | Sync from cloud storage |
 
 ### Search Syntax
 
@@ -428,11 +409,31 @@ See [config.example.yaml](config.example.yaml) for all options.
 # Build
 docker build -t file-knowledge-mcp .
 
-# Run
-docker run -v ./docs:/knowledge file-knowledge-mcp
+# Run (read-only mount recommended)
+docker run -v ./docs:/knowledge:ro file-knowledge-mcp
 
-# With sync support
-docker build --build-arg WITH_SYNC=true -t file-knowledge-mcp:sync .
+# With docker-compose
+docker-compose up
+```
+
+## Cloud Storage Integration
+
+This server provides read-only access to your local knowledge base. If you need to sync documents from cloud storage, use one of these approaches:
+
+### Option 1: rclone mount (Recommended)
+```bash
+# Mount Google Drive as local directory
+rclone mount gdrive:Knowledge /data/knowledge --read-only --vfs-cache-mode full
+```
+
+### Option 2: Cloud Desktop Clients
+Use Google Drive Desktop, Dropbox, or OneDrive sync clients to automatically sync files.
+
+### Option 3: Scheduled Sync
+Set up periodic sync with cron/systemd:
+```bash
+# Example cron job
+*/30 * * * * rclone sync gdrive:Knowledge /data/knowledge
 ```
 
 ## Development
@@ -443,13 +444,14 @@ git clone https://github.com/yourusername/file-knowledge-mcp
 cd file-knowledge-mcp
 
 # Install with dev dependencies
-uv sync --all-extras
+uv sync --extra dev
 
 # Run tests
-pytest
+uv run pytest
 
-# Lint
-ruff check src tests
+# Lint and format
+uv run ruff check src tests
+uv run ruff format src tests
 ```
 
 ## License
@@ -506,7 +508,7 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --extra dev
 
       - name: Lint with ruff
         run: uv run ruff check src tests
@@ -596,16 +598,6 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
             ghcr.io/${{ github.repository }}:latest
-
-      - name: Build and push (with sync)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          build-args: WITH_SYNC=true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}-sync
-            ghcr.io/${{ github.repository }}:sync
 ```
 
 ### Checklist
@@ -651,7 +643,7 @@ All notable changes to this project will be documented in this file.
 - Core tools: list_collections, find_document, search_documents, read_document
 - Parallel search with search_multiple
 - Document metadata with get_document_info
-- Cloud sync via rclone
+- Security features: path validation, command sandboxing
 - MCP Resources and Prompts
 - Docker support
 - PyPI package
@@ -674,10 +666,12 @@ All notable changes to this project will be documented in this file.
 Phase 4 is complete when:
 
 - [ ] Docker image builds and runs
+- [ ] Docker image is under 200MB
 - [ ] Package published to PyPI
 - [ ] `pip install file-knowledge-mcp` works
-- [ ] README is comprehensive
+- [ ] README is comprehensive with cloud sync alternatives
 - [ ] CI runs on every PR
 - [ ] Releases auto-publish to PyPI and GHCR
-- [ ] Documentation covers all features
+- [ ] Documentation covers all core features
 - [ ] At least 80% test coverage
+- [ ] Security best practices documented
