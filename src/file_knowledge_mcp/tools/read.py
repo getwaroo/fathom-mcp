@@ -10,6 +10,7 @@ from pypdf import PdfReader
 
 from ..config import Config
 from ..errors import document_not_found, file_too_large
+from ..pdf.parallel import ParallelPDFProcessor
 from ..security import FileAccessControl
 
 logger = logging.getLogger(__name__)
@@ -96,7 +97,25 @@ async def _read_document(config: Config, args: dict) -> dict:
     ext = full_path.suffix.lower()
 
     if ext == ".pdf":
-        content, total_pages, pages_read = await asyncio.to_thread(_read_pdf, full_path, pages)
+        # Use parallel PDF processor if enabled
+        if config.performance.enable_parallel_pdf:
+            processor = ParallelPDFProcessor(max_workers=config.performance.max_pdf_workers)
+            try:
+                content = await processor.extract_text_parallel(
+                    full_path, pages=pages if pages else None, include_page_markers=True
+                )
+                reader = PdfReader(full_path)
+                total_pages = len(reader.pages)
+
+                # Determine which pages were read
+                if pages:
+                    pages_read = [p for p in pages if 0 < p <= total_pages]
+                else:
+                    pages_read = list(range(1, total_pages + 1))
+            finally:
+                processor.shutdown()
+        else:
+            content, total_pages, pages_read = await asyncio.to_thread(_read_pdf, full_path, pages)
     else:
         content = await asyncio.to_thread(full_path.read_text, encoding="utf-8")
         total_pages = 1
@@ -163,8 +182,17 @@ async def _get_document_info(config: Config, args: dict) -> dict:
     }
 
     if ext == ".pdf":
-        pdf_info = await asyncio.to_thread(_extract_pdf_info, full_path)
-        info.update(pdf_info)
+        # Use parallel PDF processor if enabled for metadata extraction
+        if config.performance.enable_parallel_pdf:
+            processor = ParallelPDFProcessor(max_workers=config.performance.max_pdf_workers)
+            try:
+                pdf_info = await processor.extract_metadata(full_path)
+                info.update(pdf_info)
+            finally:
+                processor.shutdown()
+        else:
+            pdf_info = await asyncio.to_thread(_extract_pdf_info, full_path)
+            info.update(pdf_info)
     else:
         # For text files, count lines
         content = await asyncio.to_thread(full_path.read_text, encoding="utf-8")

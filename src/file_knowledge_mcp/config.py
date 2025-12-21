@@ -47,6 +47,68 @@ class LimitsConfig(BaseModel):
     max_document_read_chars: int = Field(default=100_000, ge=1000)
 
 
+class PerformanceConfig(BaseModel):
+    """Performance optimization settings."""
+
+    # File indexing
+    enable_indexing: bool = Field(
+        default=False,
+        description="Enable document indexing for faster searches",
+    )
+    index_update_strategy: Literal["auto", "manual", "scheduled"] = Field(
+        default="auto",
+        description="When to update the index",
+    )
+    index_formats: list[str] = Field(
+        default_factory=lambda: [".pdf", ".md", ".txt"],
+        description="File formats to include in index",
+    )
+    index_path: str = Field(
+        default=".fkm_index",
+        description="Index storage path (relative to knowledge root)",
+    )
+    rebuild_index_on_startup: bool = Field(
+        default=False,
+        description="Rebuild index when server starts",
+    )
+
+    # File watching
+    enable_file_watching: bool = Field(
+        default=False,
+        description="Monitor file changes for automatic index updates",
+    )
+
+    # Caching
+    enable_smart_cache: bool = Field(
+        default=True,
+        description="Enable file modification time tracking in cache",
+    )
+    cache_ttl_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        description="Cache time-to-live in seconds",
+    )
+    cache_max_size: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="Maximum number of cached entries",
+    )
+
+    # Parallel PDF processing
+    enable_parallel_pdf: bool = Field(
+        default=True,
+        description="Process PDF pages in parallel",
+    )
+    max_pdf_workers: int = Field(
+        default=4,
+        ge=1,
+        le=16,
+        description="Maximum parallel workers for PDF processing",
+    )
+
+
 class SecurityConfig(BaseModel):
     """Security settings for filter commands and file access."""
 
@@ -140,6 +202,7 @@ class Config(BaseSettings):
     exclude: ExcludeConfig = Field(default_factory=ExcludeConfig)
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     formats: dict[str, FormatConfig] = Field(
         default_factory=lambda: {
             "pdf": FormatConfig(

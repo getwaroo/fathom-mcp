@@ -10,7 +10,7 @@ from pathlib import Path
 from ..config import Config
 from ..errors import search_timeout
 from ..security import FilterSecurity
-from .cache import SearchCache
+from .cache import SearchCache, SmartSearchCache
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,23 @@ class UgrepEngine:
 
     def __init__(self, config: Config, cache: SearchCache | None = None):
         self.config = config
-        self.cache = cache or SearchCache()
+
+        # Use SmartSearchCache if enabled in performance config
+        if config.performance.enable_smart_cache and cache is None:
+            self.cache = SmartSearchCache(
+                config.knowledge.root,
+                max_size=config.performance.cache_max_size,
+                ttl_seconds=config.performance.cache_ttl_seconds,
+            )
+        else:
+            self.cache = cache or SearchCache(
+                max_size=config.performance.cache_max_size,
+                ttl_seconds=config.performance.cache_ttl_seconds,
+            )
+
         self._semaphore = asyncio.Semaphore(config.limits.max_concurrent_searches)
         self._filter_security = FilterSecurity(config)
+        self._use_smart_cache = isinstance(self.cache, SmartSearchCache)
 
     async def search(
         self,
@@ -74,15 +88,26 @@ class UgrepEngine:
         context = context_lines or self.config.search.context_lines
         max_res = max_results or self.config.search.max_results
 
-        # Check cache first
-        cached = await self.cache.get(
-            query,
-            str(path),
-            recursive=recursive,
-            context_lines=context,
-            max_results=max_res,
-            fuzzy=fuzzy,
-        )
+        # Check cache first (use smart cache if available)
+        if self._use_smart_cache:
+            cached = await self.cache.get_with_validation(
+                query,
+                str(path),
+                recursive=recursive,
+                context_lines=context,
+                max_results=max_res,
+                fuzzy=fuzzy,
+            )
+        else:
+            cached = await self.cache.get(
+                query,
+                str(path),
+                recursive=recursive,
+                context_lines=context,
+                max_results=max_res,
+                fuzzy=fuzzy,
+            )
+
         if cached is not None:
             logger.debug(f"Cache hit for query: {query}")
             return cached
@@ -90,16 +115,27 @@ class UgrepEngine:
         # Execute search
         result = await self._execute_search(query, path, recursive, context, max_res, fuzzy)
 
-        # Cache result
-        await self.cache.set(
-            query,
-            str(path),
-            result,
-            recursive=recursive,
-            context_lines=context,
-            max_results=max_res,
-            fuzzy=fuzzy,
-        )
+        # Cache result (use smart cache if available)
+        if self._use_smart_cache:
+            await self.cache.set_with_tracking(
+                query,
+                str(path),
+                result,
+                recursive=recursive,
+                context_lines=context,
+                max_results=max_res,
+                fuzzy=fuzzy,
+            )
+        else:
+            await self.cache.set(
+                query,
+                str(path),
+                result,
+                recursive=recursive,
+                context_lines=context,
+                max_results=max_res,
+                fuzzy=fuzzy,
+            )
 
         return result
 

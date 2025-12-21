@@ -4,8 +4,11 @@ import json
 
 import pytest
 
-from file_knowledge_mcp.resources import _get_root_index, _get_collection_index, _get_document_info_resource
-
+from file_knowledge_mcp.resources import (
+    _get_collection_index,
+    _get_document_info_resource,
+    _get_root_index,
+)
 
 # ============================================================================
 # MCP Resources Tests

@@ -119,13 +119,10 @@ def pdf_with_toc(rich_knowledge_dir):
         writer.add_blank_page(width=612, height=792)
 
     # Add metadata
-    writer.add_metadata({
-        "/Title": "Game Manual",
-        "/Author": "Test Author"
-    })
+    writer.add_metadata({"/Title": "Game Manual", "/Author": "Test Author"})
 
     # Add bookmarks (TOC)
-    parent = writer.add_outline_item("Introduction", 0)
+    writer.add_outline_item("Introduction", 0)
     writer.add_outline_item("Setup", 1)
     gameplay = writer.add_outline_item("Gameplay", 2)
     writer.add_outline_item("Combat", 2, parent=gameplay)

@@ -43,6 +43,27 @@ limits:
   max_concurrent_searches: 4
   max_document_read_chars: 100000
 
+# Optional: performance settings (Phase 2 enhancements)
+performance:
+  # File indexing for faster searches on large collections
+  enable_indexing: false               # Enable document indexing
+  index_update_strategy: "auto"        # auto | manual | scheduled
+  index_formats: [".pdf", ".md", ".txt"]  # File formats to include in index
+  index_path: ".fkm_index"             # Index storage path (relative to knowledge root)
+  rebuild_index_on_startup: false      # Rebuild index when server starts
+
+  # File watching for automatic index updates
+  enable_file_watching: false          # Monitor file changes for auto-updates
+
+  # Caching with file modification tracking
+  enable_smart_cache: true             # Enable file mtime tracking in cache
+  cache_ttl_seconds: 300               # Cache time-to-live (5 minutes)
+  cache_max_size: 100                  # Maximum cached entries
+
+  # Parallel PDF processing
+  enable_parallel_pdf: true            # Process PDF pages in parallel
+  max_pdf_workers: 4                   # Maximum parallel workers for PDFs
+
 # Optional: security settings (Phase 1 enhancements)
 security:
   # Filter command security
@@ -79,3 +100,6 @@ security:
 #   FKM_SECURITY__ENABLE_SHELL_FILTERS=false
 #   FKM_SECURITY__FILTER_SECURITY_MODE=disabled
 #   FKM_SEARCH__MAX_RESULTS=100
+#   FKM_PERFORMANCE__ENABLE_INDEXING=true
+#   FKM_PERFORMANCE__ENABLE_FILE_WATCHING=true
+#   FKM_PERFORMANCE__ENABLE_PARALLEL_PDF=false

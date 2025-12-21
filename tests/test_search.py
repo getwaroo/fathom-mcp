@@ -12,7 +12,7 @@ from file_knowledge_mcp.search.ugrep import SearchResult, UgrepEngine
 from file_knowledge_mcp.tools.search import _search_documents, _search_multiple
 
 # Enable debug logging for tests
-logging.basicConfig(level=logging.DEBUG, format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s")
 
 
 # ============================================================================
@@ -304,6 +304,7 @@ async def test_search_no_results(search_engine, rich_knowledge_dir):
 @pytest.mark.asyncio
 async def test_search_timeout(search_engine, rich_knowledge_dir, rich_config):
     """Test search timeout handling."""
+
     # Mock the _run_ugrep method to simulate a slow search
     async def slow_search(*args, **kwargs):
         await asyncio.sleep(100)  # Sleep longer than timeout
@@ -493,7 +494,9 @@ async def test_search_documents_custom_context_and_max_results(rich_config, rich
 
 
 @pytest.mark.asyncio
-async def test_search_pdf_with_filter(search_engine, pdf_test_file, rich_knowledge_dir, rich_config):
+async def test_search_pdf_with_filter(
+    search_engine, pdf_test_file, rich_knowledge_dir, rich_config
+):
     """Test search in PDF files using pdftotext filter."""
     # Check if PDF format is enabled in config
     if ".pdf" in rich_config.supported_extensions:
@@ -612,7 +615,7 @@ async def test_build_command_recursive(search_engine, rich_knowledge_dir):
     )
 
     assert "ugrep" in cmd
-    assert "-%"  in cmd  # Boolean mode
+    assert "-%" in cmd  # Boolean mode
     assert "-i" in cmd  # Case insensitive
     assert "-C3" in cmd  # Context lines
     assert "-r" in cmd  # Recursive

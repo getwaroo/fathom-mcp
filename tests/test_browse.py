@@ -36,6 +36,7 @@ async def test_find_document(config):
     assert result["matches"][0]["name"] == "Gloomhaven.md"
     # Use Path normalization for cross-platform compatibility
     from pathlib import Path
+
     assert Path(result["matches"][0]["collection"]) == Path("games/coop")
 
 

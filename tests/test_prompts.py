@@ -2,8 +2,11 @@
 
 import pytest
 
-from file_knowledge_mcp.prompts import _answer_question_prompt, _summarize_document_prompt, _compare_documents_prompt
-
+from file_knowledge_mcp.prompts import (
+    _answer_question_prompt,
+    _compare_documents_prompt,
+    _summarize_document_prompt,
+)
 
 # ============================================================================
 # MCP Prompts Tests
@@ -13,10 +16,7 @@ from file_knowledge_mcp.prompts import _answer_question_prompt, _summarize_docum
 @pytest.mark.asyncio
 async def test_prompt_answer_question():
     """Test answer_question prompt generation."""
-    args = {
-        "question": "How does movement work?",
-        "collection": "games"
-    }
+    args = {"question": "How does movement work?", "collection": "games"}
 
     messages = _answer_question_prompt(args)
 
@@ -47,9 +47,7 @@ async def test_prompt_answer_question_no_collection():
 @pytest.mark.asyncio
 async def test_prompt_summarize_document():
     """Test summarize_document prompt generation."""
-    args = {
-        "document_path": "games/coop/Gloomhaven.md"
-    }
+    args = {"document_path": "games/coop/Gloomhaven.md"}
 
     messages = _summarize_document_prompt(args)
 
@@ -68,7 +66,7 @@ async def test_prompt_compare_documents():
     args = {
         "doc1": "games/coop/Gloomhaven.md",
         "doc2": "games/Strategy.md",
-        "topic": "combat tactics"
+        "topic": "combat tactics",
     }
 
     messages = _compare_documents_prompt(args)
@@ -95,11 +93,9 @@ async def test_prompt_all_registered_prompts():
     summarize_msgs = _summarize_document_prompt({"document_path": "test.md"})
     assert len(summarize_msgs) > 0
 
-    compare_msgs = _compare_documents_prompt({
-        "doc1": "doc1.md",
-        "doc2": "doc2.md",
-        "topic": "test"
-    })
+    compare_msgs = _compare_documents_prompt(
+        {"doc1": "doc1.md", "doc2": "doc2.md", "topic": "test"}
+    )
     assert len(compare_msgs) > 0
 
 
