@@ -218,3 +218,7 @@ __marimo__/
 #cluade code
 .claude/
 CLAUDE.md
+
+#other
+documents/
+test_docs/
