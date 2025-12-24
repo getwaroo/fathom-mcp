@@ -1,30 +1,37 @@
-# file-knowledge-mcp
+# File Knowledge MCP Server
 
-[![PyPI version](https://badge.fury.io/py/file-knowledge-mcp.svg)](https://pypi.org/project/file-knowledge-mcp/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-File-first knowledge base MCP server. Search your documents with AI using the Model Context Protocol.
+A Model Context Protocol server that provides AI assistants with direct access to local document collections through file-first search capabilities.
 
 ## Features
 
-- **File-first approach** - Search directly in files using ugrep (no database/RAG required)
-- **Boolean search** - AND, OR, NOT operators for precise queries
-- **Hierarchical collections** - Organize documents in folders
-- **Multiple formats** - PDF, Markdown, plain text, and more
-- **Security-first** - Path validation, command sandboxing, read-only by design
-- **Parallel search** - Search multiple terms simultaneously for faster results
-- **Document metadata** - Get table of contents and metadata information
+### Search Capabilities
+- **Full-text search** with boolean operators (AND, OR, NOT) and exact phrase matching
+- **Parallel search** across multiple queries for faster results
+- **Fuzzy matching** and context-aware result highlighting
+- **Powered by ugrep** - No database or RAG infrastructure required
 
-## Quick Start
+### Organization
+- **Hierarchical collections** - Organize knowledge using folder structures
+- **Scope control** - Search globally, within collections, or in specific documents
+- **Smart discovery** - Find documents by name or path patterns
 
-### Installation
+### Format Support
+- **PDF documents** via poppler-utils text extraction
+- **Markdown files** with full formatting preservation
+- **Plain text** and other common formats
+- **Extensible format system** with configurable filters
 
-```bash
-# Install from PyPI
-pip install file-knowledge-mcp
-```
+### Security
+- **Read-only access** - Server never modifies your documents
+- **Path validation** - Prevents directory traversal attacks
+- **Command sandboxing** - Filter commands run in restricted mode
+- **Whitelist enforcement** - Shell filters validated before execution
+
+## Installation
 
 ### System Dependencies
+
+This server requires the following system utilities:
 
 ```bash
 # Ubuntu/Debian
@@ -34,67 +41,84 @@ sudo apt install ugrep poppler-utils
 brew install ugrep poppler
 ```
 
-### Usage
+### Installing via pip
 
 ```bash
-# Start with a documents folder
-file-knowledge-mcp --root ./my-documents
-
-# Or with a config file
-file-knowledge-mcp --config config.yaml
+pip install file-knowledge-mcp
 ```
 
-### Claude Desktop Integration
+## Collections and Scope
 
-Add to your `claude_desktop_config.json`:
+The File Knowledge server organizes documents using a **collection-based hierarchy** that maps directly to your filesystem structure.
 
-```json
-{
-  "mcpServers": {
-    "knowledge": {
-      "command": "file-knowledge-mcp",
-      "args": ["--root", "/path/to/documents"]
-    }
-  }
-}
+### Understanding Collections
+
+- A **collection** is simply a folder within your knowledge base root
+- Collections can be nested to any depth
+- Each document belongs to exactly one collection (its containing folder)
+- The root directory itself is the top-level collection
+
+### Configuring the Knowledge Root
+
+The knowledge root can be specified via:
+
+**Command-line argument** (recommended for static setups):
+```bash
+file-knowledge-mcp --root /path/to/documents
 ```
 
-On macOS, the config file is typically located at:
-`~/Library/Application Support/Claude/claude_desktop_config.json`
+**Configuration file**:
+```yaml
+knowledge:
+  root: "/path/to/documents"
+```
 
-On Windows:
-`%APPDATA%/Claude/claude_desktop_config.json`
+**Environment variable**:
+```bash
+export FKM_KNOWLEDGE__ROOT=/path/to/documents
+```
 
-Restart Claude Desktop after making changes.
+### Search Scopes
+
+All search operations support three scope levels:
+
+- **Global scope** - Search across all documents in the knowledge base
+- **Collection scope** - Limit search to a specific folder and its subfolders
+- **Document scope** - Search within a single document only
+
+This hierarchical approach enables efficient knowledge organization without requiring database infrastructure.
 
 ## Configuration
 
-Create a `config.yaml`:
+### Basic Configuration
+
+Create a `config.yaml` with your settings:
 
 ```yaml
 knowledge:
   root: "./documents"
 
 search:
-  context_lines: 5
-  max_results: 50
-  timeout: 30
+  context_lines: 5        # Lines of context around matches
+  max_results: 50         # Maximum results per search
+  timeout: 30             # Search timeout in seconds
 
 security:
   enable_shell_filters: true
-  filter_mode: whitelist
+  filter_mode: whitelist  # Recommended for production
 
 exclude:
   patterns:
     - ".git/*"
     - "*.draft.*"
+    - "*.tmp"
 ```
 
-See [config.example.yaml](config.example.yaml) for all options.
+See [config.example.yaml](config.example.yaml) for all available options.
 
 ### Environment Variables
 
-All configuration options can be set via environment variables with the `FKM_` prefix:
+All configuration options can be overridden using environment variables with the `FKM_` prefix:
 
 ```bash
 export FKM_KNOWLEDGE__ROOT=/path/to/documents
@@ -102,44 +126,86 @@ export FKM_SEARCH__MAX_RESULTS=100
 export FKM_SECURITY__FILTER_MODE=whitelist
 ```
 
-## Tools
+Use double underscores (`__`) to denote nested configuration levels.
 
-| Tool | Description |
-|------|-------------|
-| `list_collections` | Browse document folders |
-| `find_document` | Find documents by name |
-| `search_documents` | Search inside documents |
-| `search_multiple` | Parallel search for multiple terms |
-| `read_document` | Read document content |
-| `get_document_info` | Get metadata and TOC |
+## API
+
+### Tools
+
+The server implements six MCP tools organized into three categories:
+
+#### Browse Operations
+- **`list_collections`** - List folders and documents in a collection
+- **`find_document`** - Find documents by name or path pattern
+
+#### Search Operations
+- **`search_documents`** - Full-text search with boolean operators
+- **`search_multiple`** - Execute multiple searches in parallel
+
+#### Read Operations
+- **`read_document`** - Read document content with optional page selection
+- **`get_document_info`** - Get document metadata and table of contents
 
 ### list_collections
 
-Browse the folder structure of your knowledge base.
+Browse the hierarchical structure of your knowledge base.
 
+**Arguments:**
+- `path` (string, optional): Collection path relative to root. Defaults to root level.
+
+**Returns:**
+- List of subcollections (folders)
+- List of documents with their paths and formats
+
+**Example:**
 ```json
 {
   "path": "programming/python"
 }
 ```
 
-Returns a list of collections (folders) and documents in the specified path.
-
 ### find_document
 
-Find documents by name or path pattern.
+Locate documents by filename or path pattern using fuzzy matching.
 
+**Arguments:**
+- `query` (string, required): Search term for document names
+- `limit` (number, optional): Maximum results to return (default: 20)
+
+**Returns:**
+- List of matching documents with paths and relevance scores
+
+**Example:**
 ```json
 {
-  "query": "async",
+  "query": "async patterns",
   "limit": 10
 }
 ```
 
 ### search_documents
 
-Full-text search with boolean operators and scope control.
+Execute full-text searches across your knowledge base with powerful boolean operators.
 
+**Arguments:**
+- `query` (string, required): Search query with optional operators
+- `scope` (object, required): Defines search boundaries
+  - `type` (string): One of `"global"`, `"collection"`, or `"document"`
+  - `path` (string, conditional): Required for `collection` and `document` scopes
+
+**Search Operators:**
+- `term1 term2` - AND: Find documents containing both terms
+- `term1|term2` - OR: Find documents containing either term
+- `term1 -term2` - NOT: Exclude documents with term2
+- `"exact phrase"` - Match exact phrase with quotes
+
+**Returns:**
+- List of matches with document path, line numbers, and context
+- Truncation indicator if results exceed maximum
+
+**Examples:**
+
+Global search:
 ```json
 {
   "query": "authentication jwt",
@@ -149,258 +215,340 @@ Full-text search with boolean operators and scope control.
 }
 ```
 
-Scope types:
-- `global` - Search all documents
-- `collection` - Search within a specific folder
-- `document` - Search within a single document
-
-### Search Syntax
-
-```
-"attack armor"     - Find both terms (AND)
-"move|teleport"    - Find either term (OR)
-"attack -ranged"   - Exclude term (NOT)
-'"end of turn"'    - Exact phrase
-```
-
-### search_multiple
-
-Search for multiple queries in parallel for faster results.
-
+Collection-scoped search:
 ```json
 {
-  "queries": ["authentication", "authorization", "security"],
+  "query": "async|await -deprecated",
   "scope": {
     "type": "collection",
-    "path": "docs/api"
+    "path": "programming/python"
   }
 }
 ```
 
-### read_document
-
-Read the full content of a document.
-
+Document-specific search:
 ```json
 {
-  "path": "guides/tutorial.pdf",
-  "pages": [1, 2, 3]
+  "query": "\"error handling\"",
+  "scope": {
+    "type": "document",
+    "path": "guides/best-practices.md"
+  }
 }
 ```
 
-For PDFs, you can optionally specify which pages to read. Omit `pages` to read the entire document.
+### search_multiple
+
+Execute multiple search queries concurrently for improved performance.
+
+**Arguments:**
+- `queries` (array of strings, required): List of search queries
+- `scope` (object, required): Same scope structure as `search_documents`
+
+**Returns:**
+- Object mapping each query to its search results
+- Each result includes matches and truncation status
+
+**Example:**
+```json
+{
+  "queries": ["authentication", "authorization", "session management"],
+  "scope": {
+    "type": "collection",
+    "path": "security/docs"
+  }
+}
+```
+
+**Note:** Concurrent searches are limited by the `limits.max_concurrent_searches` configuration setting.
+
+### read_document
+
+Read the complete contents of a document with optional page selection for PDFs.
+
+**Arguments:**
+- `path` (string, required): Document path relative to knowledge root
+- `pages` (array of numbers, optional): Specific pages to read (PDF only)
+
+**Returns:**
+- Document content as text
+- Format metadata
+
+**Examples:**
+
+Read entire document:
+```json
+{
+  "path": "guides/user-manual.pdf"
+}
+```
+
+Read specific pages:
+```json
+{
+  "path": "guides/user-manual.pdf",
+  "pages": [1, 5, 10]
+}
+```
+
+**Note:** Content length is limited by the `limits.max_read_chars` configuration setting.
 
 ### get_document_info
 
-Get metadata and table of contents for a document.
+Retrieve metadata and structural information about a document.
 
+**Arguments:**
+- `path` (string, required): Document path relative to knowledge root
+
+**Returns:**
+- File size and format
+- Page count (for PDFs)
+- Table of contents with page numbers (when available)
+- Last modified timestamp
+
+**Example:**
 ```json
 {
-  "path": "guides/manual.pdf"
+  "path": "reference/api-documentation.pdf"
 }
 ```
 
-Returns information like page count, file size, format, and extracted table of contents (for PDFs).
+## Usage with Claude Desktop
 
-## Docker
+### Using Command-Line Arguments
 
-### Build and Run
+Add this to your `claude_desktop_config.json`:
 
-```bash
-# Build
-docker build -t file-knowledge-mcp .
-
-# Run (read-only mount recommended)
-docker run -v ./docs:/knowledge:ro file-knowledge-mcp
-
-# With custom config
-docker run -v ./docs:/knowledge:ro -v ./config.yaml:/config/config.yaml:ro file-knowledge-mcp
+```json
+{
+  "mcpServers": {
+    "file-knowledge": {
+      "command": "file-knowledge-mcp",
+      "args": ["--root", "/path/to/your/documents"]
+    }
+  }
+}
 ```
 
-### Using docker-compose
+### Using Configuration File
+
+For more complex setups, use a configuration file:
+
+```json
+{
+  "mcpServers": {
+    "file-knowledge": {
+      "command": "file-knowledge-mcp",
+      "args": ["--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+### Using uv (Development)
+
+When developing or running from source:
+
+```json
+{
+  "mcpServers": {
+    "file-knowledge": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/file-knowledge-mcp",
+        "run",
+        "file-knowledge-mcp",
+        "--root",
+        "/path/to/documents"
+      ]
+    }
+  }
+}
+```
+
+### Configuration File Location
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+**Important:** Restart Claude Desktop after modifying the configuration file.
+
+## Docker Deployment
+
+### Using docker-compose (Recommended)
 
 ```bash
-# Start
+# Start the server
 docker-compose up
 
 # Build and start
 docker-compose up --build
 
-# Run in background
+# Run in detached mode
 docker-compose up -d
 ```
 
-The `docker-compose.yaml` file includes:
+The included `docker-compose.yaml` provides:
 - Read-only document mounting for security
 - Resource limits (512MB memory, 1 CPU)
-- Proper stdio configuration for MCP communication
+- Proper stdio configuration for MCP protocol
+
+### Manual Docker Build
+
+```bash
+# Build image
+docker build -t file-knowledge-mcp .
+
+# Run with read-only mount
+docker run -v /path/to/docs:/knowledge:ro file-knowledge-mcp
+
+# Run with custom configuration
+docker run \
+  -v /path/to/docs:/knowledge:ro \
+  -v /path/to/config.yaml:/config/config.yaml:ro \
+  file-knowledge-mcp
+```
 
 ## Cloud Storage Integration
 
-This server provides read-only access to your local knowledge base. If you need to sync documents from cloud storage, use one of these approaches:
+The File Knowledge server operates on **local documents only**. Cloud synchronization is intentionally handled outside the MCP server for security and architectural clarity.
 
-### Option 1: rclone mount (Recommended)
+### Recommended Approaches
 
-Mount cloud storage as a local directory that the MCP server can read:
+**Option 1: Cloud Desktop Clients**
+- Google Drive Desktop, Dropbox, OneDrive, iCloud Drive
+- Automatic background sync to local folder
+- Point server to synced directory
 
+**Option 2: rclone mount**
 ```bash
-# Mount Google Drive as local directory
-rclone mount gdrive:Knowledge /data/knowledge --read-only --vfs-cache-mode full
-
-# Mount in background with logging
-rclone mount gdrive:Knowledge /data/knowledge \
-  --read-only \
-  --vfs-cache-mode full \
-  --log-file=/var/log/rclone.log \
-  --daemon
+# Mount cloud storage as read-only local directory
+rclone mount gdrive:Knowledge /data/knowledge --read-only --vfs-cache-mode full --daemon
 ```
 
-Then configure the MCP server to use the mount point:
-
-```yaml
-knowledge:
-  root: "/data/knowledge"
-```
-
-### Option 2: Cloud Desktop Clients
-
-Use official sync clients to automatically sync files to a local folder:
-
-- **Google Drive Desktop** - Syncs Google Drive to your computer
-- **Dropbox** - Syncs Dropbox folders
-- **OneDrive** - Syncs OneDrive/SharePoint
-- **iCloud Drive** - Syncs iCloud documents
-
-Point the MCP server at the synced folder:
-
-```yaml
-knowledge:
-  root: "~/Google Drive/Knowledge"
-```
-
-### Option 3: Scheduled Sync
-
-Set up periodic sync with cron/systemd:
-
+**Option 3: Scheduled sync**
 ```bash
-# Example cron job (sync every 30 minutes)
-*/30 * * * * rclone sync gdrive:Knowledge /data/knowledge --log-file=/var/log/rclone-sync.log
+# Periodic sync via cron
+*/30 * * * * rclone sync gdrive:Knowledge /data/knowledge
 ```
 
-Or use a systemd timer for more control. See `docs/cloud-sync-guide.md` for detailed setup instructions.
+See [`docs/cloud-sync-guide.md`](docs/cloud-sync-guide.md) for detailed setup instructions.
 
-### Why Not Built-in Sync?
-
-Cloud sync is intentionally kept separate from the MCP server for:
-
-- **Security** - Prevents AI from accessing cloud credentials or triggering syncs
-- **Single Responsibility** - Server focuses on read-only document access
-- **Flexibility** - Use any sync method that works for your setup
-- **Simplicity** - Smaller attack surface, easier security audits
 
 ## Development
 
-### Setup
+### Project Setup
 
 ```bash
-# Clone
+# Clone repository
 git clone https://github.com/yourusername/file-knowledge-mcp
 cd file-knowledge-mcp
 
-# Install with dev dependencies
+# Install with development dependencies (recommended)
 uv sync --extra dev
 
-# Or with pip
+# Alternative: pip
 pip install -e ".[dev]"
 ```
 
-### Testing
+### Running Tests
 
 ```bash
 # Run all tests
 uv run pytest
 
-# Run with verbose output
-uv run pytest -v
-
-# Run with coverage
+# Run with coverage report
 uv run pytest --cov
 
 # Run specific test file
 uv run pytest tests/test_search.py
 
-# Run specific test
-uv run pytest tests/test_search.py::test_search_simple_query
+# Run with verbose output
+uv run pytest -v
 ```
 
-### Code Quality
+### Code Quality Tools
 
 ```bash
-# Lint and format
-uv run ruff check src tests
-uv run ruff format src tests
+# Format code
+uv run ruff format .
+
+# Lint code
+uv run ruff check .
+
+# Auto-fix linting issues
+uv run ruff check . --fix
 
 # Type checking
 uv run mypy src
 ```
 
-### Project Structure
-
-```
-file-knowledge-mcp/
-├── src/file_knowledge_mcp/
-│   ├── config.py          # Configuration management
-│   ├── errors.py          # Error definitions
-│   ├── security.py        # Security controls
-│   ├── server.py          # MCP server
-│   ├── __main__.py        # CLI entry point
-│   ├── tools/
-│   │   ├── browse.py      # list_collections, find_document
-│   │   ├── search.py      # search_documents, search_multiple
-│   │   └── read.py        # read_document, get_document_info
-│   └── search/
-│       └── ugrep.py       # Search engine wrapper
-├── tests/
-│   ├── conftest.py
-│   ├── test_config.py
-│   ├── test_browse.py
-│   ├── test_search.py
-│   └── test_read.py
-├── docs/
-│   └── cloud-sync-guide.md  # Cloud storage integration guide
-├── specs/
-│   ├── phase-1-foundation.md
-│   ├── phase-2-enhancements.md
-│   └── phase-4-distribution.md
-├── Dockerfile
-├── docker-compose.yaml
-├── pyproject.toml
-└── config.example.yaml
-```
-
 ## Security
 
-This server implements multiple security layers:
+The File Knowledge server implements defense-in-depth security:
 
-- **Path Validation** - All file paths validated to prevent directory traversal
-- **Command Sandboxing** - Shell commands (PDF filters) run in restricted mode
-- **Read-Only** - Server never writes to the knowledge base
-- **Whitelist Mode** - Filter commands validated against whitelist
-- **Timeout Protection** - All operations have configurable timeouts
-- **No Cloud Credentials** - Server never accesses cloud storage directly
+### Path Security
+- **Path validation**: All file paths validated against knowledge root
+- **Traversal prevention**: Blocks `../` and absolute path attacks
+- **Symlink policy**: Configurable symlink following (default: disabled)
 
-See `CLAUDE.md` for detailed security architecture documentation.
+### Command Security
+- **Whitelist enforcement**: Filter commands validated before execution
+- **Sandboxed execution**: Shell commands run with timeout limits
+- **Read-only design**: Server never modifies document collection
+- **No credential access**: Server never touches cloud storage APIs
+
+### Configuration
+```yaml
+security:
+  enable_shell_filters: true
+  filter_mode: whitelist          # Recommended for production
+  allowed_filter_commands:
+    - "pdftotext - -"
+  symlink_policy: disallow        # Prevent symlink attacks
+```
+
+## Debugging
+
+Since MCP servers run over stdio, debugging can be challenging. For the best debugging experience, I recommend using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector file-knowledge-mcp --root /path/to/documents
+```
+
+The Inspector provides:
+- Interactive tool testing
+- Request/response inspection
+- Server log monitoring
+- Real-time debugging
+
+You can also use the MCP Inspector to test different configurations:
+
+```bash
+npx @modelcontextprotocol/inspector file-knowledge-mcp --config config.yaml
+```
 
 ## Contributing
 
-Contributions are welcome! Please see `CONTRIBUTING.md` for guidelines.
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Run code quality checks (`ruff format`, `ruff check`, `mypy`)
+5. Submit a pull request
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## Resources
 
-- Built with [MCP](https://modelcontextprotocol.io/) (Model Context Protocol)
-- Search powered by [ugrep](https://github.com/Genivia/ugrep)
-- PDF processing via [poppler-utils](https://poppler.freedesktop.org/)
+- [Model Context Protocol](https://modelcontextprotocol.io/) - Official MCP documentation
+- [MCP Specification](https://spec.modelcontextprotocol.io/) - Protocol specification
+- [ugrep](https://github.com/Genivia/ugrep) - Ultra-fast grep with boolean search
+- [poppler-utils](https://poppler.freedesktop.org/) - PDF rendering utilities

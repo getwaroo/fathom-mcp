@@ -1,7 +1,7 @@
 """MCP Prompts for common knowledge base tasks."""
 
 from mcp.server import Server
-from mcp.types import Prompt, PromptArgument, PromptMessage, TextContent
+from mcp.types import GetPromptResult, Prompt, PromptArgument, PromptMessage, TextContent
 
 from .config import Config
 
@@ -63,17 +63,19 @@ def register_prompts(server: Server, config: Config) -> None:
         ]
 
     @server.get_prompt()
-    async def get_prompt(name: str, arguments: dict | None) -> list[PromptMessage]:
+    async def get_prompt(name: str, arguments: dict | None) -> GetPromptResult:
         args = arguments or {}
 
         if name == "answer_question":
-            return _answer_question_prompt(args)
+            messages = _answer_question_prompt(args)
         elif name == "summarize_document":
-            return _summarize_document_prompt(args)
+            messages = _summarize_document_prompt(args)
         elif name == "compare_documents":
-            return _compare_documents_prompt(args)
+            messages = _compare_documents_prompt(args)
         else:
             raise ValueError(f"Unknown prompt: {name}")
+
+        return GetPromptResult(messages=messages)
 
 
 def _answer_question_prompt(args: dict) -> list[PromptMessage]:
