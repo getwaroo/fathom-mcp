@@ -234,7 +234,12 @@ class UgrepEngine:
                         ext = f".{ext}"
                     cmd.extend(["--include", f"*{ext}"])
 
-        cmd.append(query)
+        # When using --config, pattern must be specified with -e flag
+        # Otherwise ugrep treats it as a file path
+        if use_filters:
+            cmd.extend(["-e", query])
+        else:
+            cmd.append(query)
         cmd.append(str(path))
 
         return cmd
